@@ -1,4 +1,3 @@
-
 variable "project_id" {
   description = "Google Cloud project ID."
   type        = string
@@ -9,13 +8,21 @@ variable "network" {
   type        = string
 }
 
+variable "network_name" {
+  description = "Name of the VPC network (required for peering routes configuration)."
+  type        = string
+  default     = ""
+}
+
 variable "private_service_access" {
-  description = "Optional Private Service Access configuration."
+  description = "Configuration for Private Service Access (Cloud SQL, Memorystore)."
   type = object({
-    name          = string
-    address       = string
-    prefix_length = number
-    service       = optional(string, "servicenetworking.googleapis.com")
+    name                 = string
+    address              = string
+    prefix_length        = number
+    service              = optional(string, "servicenetworking.googleapis.com")
+    import_custom_routes = optional(bool, false)
+    export_custom_routes = optional(bool, false)
   })
   default = null
 
@@ -43,7 +50,7 @@ variable "psc_endpoints" {
 }
 
 variable "pga_subnets" {
-  description = "Subnets created with Private Google Access enabled."
+  description = "Subnets to create with Private Google Access enabled."
   type = map(object({
     region                     = string
     ip_cidr_range              = string
@@ -54,7 +61,7 @@ variable "pga_subnets" {
 }
 
 variable "labels" {
-  description = "Labels applied to supported resources."
+  description = "Labels applied to supported resources (addresses, forwarding rules)."
   type        = map(string)
   default     = {}
 }

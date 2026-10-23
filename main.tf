@@ -1,3 +1,5 @@
+# --- Private Service Access (PSA) ---
+
 resource "google_compute_global_address" "private_service_access" {
   count = var.private_service_access == null ? 0 : 1
 
@@ -13,14 +15,23 @@ resource "google_compute_global_address" "private_service_access" {
 resource "google_service_networking_connection" "private_service_access" {
   count = var.private_service_access == null ? 0 : 1
 
-  network = var.network
-  service = var.private_service_access.service
-  reserved_peering_ranges = [
-    google_compute_global_address.private_service_access[0].name
-  ]
-
-  deletion_policy = "ABANDON"
+  network                 = var.network
+  service                 = var.private_service_access.service
+  reserved_peering_ranges = [google_compute_global_address.private_service_access[0].name]
+  deletion_policy         = "ABANDON"
 }
+
+resource "google_compute_network_peering_routes_config" "psa_routes" {
+  count = (var.private_service_access != null && var.network_name != "") ? 1 : 0
+
+  project              = var.project_id
+  peering              = google_service_networking_connection.private_service_access[0].peering
+  network              = var.network_name
+  import_custom_routes = var.private_service_access.import_custom_routes
+  export_custom_routes = var.private_service_access.export_custom_routes
+}
+
+# --- Private Service Connect (PSC) ---
 
 resource "google_compute_address" "psc" {
   for_each = var.psc_endpoints
@@ -31,6 +42,7 @@ resource "google_compute_address" "psc" {
   address_type = "INTERNAL"
   subnetwork   = each.value.subnetwork
   address      = each.value.ip_address
+  labels       = var.labels
 }
 
 resource "google_compute_forwarding_rule" "psc" {
@@ -45,7 +57,10 @@ resource "google_compute_forwarding_rule" "psc" {
   target                  = each.value.service_attachment
   allow_psc_global_access = each.value.allow_global_access
   load_balancing_scheme   = ""
+  labels                  = var.labels
 }
+
+# --- Private Google Access (PGA) Subnets ---
 
 resource "google_compute_subnetwork" "pga" {
   for_each = var.pga_subnets
