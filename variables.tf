@@ -9,9 +9,22 @@ variable "network" {
 }
 
 variable "network_name" {
-  description = "Name of the VPC network (required for peering routes configuration)."
+  description = "Name of the VPC network. Required when PSA custom routes are enabled."
   type        = string
   default     = ""
+
+  validation {
+    condition = (
+      var.private_service_access == null ||
+      (
+        !var.private_service_access.import_custom_routes &&
+        !var.private_service_access.export_custom_routes
+      ) ||
+      trim(var.network_name) != ""
+    )
+
+    error_message = "network_name is required when PSA import_custom_routes or export_custom_routes is enabled."
+  }
 }
 
 variable "private_service_access" {
@@ -51,13 +64,70 @@ variable "psc_endpoints" {
 
 variable "pga_subnets" {
   description = "Subnets to create with Private Google Access enabled."
+
   type = map(object({
     region                     = string
     ip_cidr_range              = string
     description                = optional(string)
     private_ipv6_google_access = optional(string)
+    stack_type                 = optional(string, "IPV4_ONLY")
+    ipv6_access_type           = optional(string)
   }))
+
   default = {}
+
+  validation {
+    condition = alltrue([
+      for subnet in values(var.pga_subnets) :
+      contains(["IPV4_ONLY", "IPV4_IPV6"], subnet.stack_type)
+    ])
+
+    error_message = "pga_subnets.stack_type must be IPV4_ONLY or IPV4_IPV6."
+  }
+
+  validation {
+    condition = alltrue([
+      for subnet in values(var.pga_subnets) :
+      subnet.ipv6_access_type == null ||
+      contains(["INTERNAL", "EXTERNAL"], subnet.ipv6_access_type)
+    ])
+
+    error_message = "pga_subnets.ipv6_access_type must be INTERNAL or EXTERNAL."
+  }
+
+  validation {
+    condition = alltrue([
+      for subnet in values(var.pga_subnets) :
+      subnet.stack_type == "IPV4_ONLY" ||
+      subnet.ipv6_access_type != null
+    ])
+
+    error_message = "ipv6_access_type must be provided when stack_type is IPV4_IPV6."
+  }
+
+  validation {
+    condition = alltrue([
+      for subnet in values(var.pga_subnets) :
+      subnet.private_ipv6_google_access == null ||
+      subnet.stack_type == "IPV4_IPV6"
+    ])
+
+    error_message = "private_ipv6_google_access requires stack_type = IPV4_IPV6."
+  }
+
+  validation {
+    condition = alltrue([
+      for subnet in values(var.pga_subnets) :
+      subnet.private_ipv6_google_access == null ||
+      contains([
+        "DISABLE_GOOGLE_ACCESS",
+        "ENABLE_OUTBOUND_VM_ACCESS_TO_GOOGLE",
+        "ENABLE_BIDIRECTIONAL_ACCESS_TO_GOOGLE"
+      ], subnet.private_ipv6_google_access)
+    ])
+
+    error_message = "private_ipv6_google_access must be DISABLE_GOOGLE_ACCESS, ENABLE_OUTBOUND_VM_ACCESS_TO_GOOGLE, or ENABLE_BIDIRECTIONAL_ACCESS_TO_GOOGLE."
+  }
 }
 
 variable "labels" {

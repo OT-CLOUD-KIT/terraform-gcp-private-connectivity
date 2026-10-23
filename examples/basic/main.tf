@@ -37,9 +37,12 @@ module "private_connectivity" {
 
   pga_subnets = {
     "demo-pga-subnet" = {
-      region        = var.region
-      ip_cidr_range = var.pga_subnet_cidr
-      description   = "Demo subnet with Private Google Access enabled"
+      region                     = var.region
+      ip_cidr_range              = var.pga_subnet_cidr
+      description                = "Demo subnet with Private Google Access enabled"
+      stack_type                 = "IPV4_IPV6"
+      ipv6_access_type           = "INTERNAL"
+      private_ipv6_google_access = "ENABLE_OUTBOUND_VM_ACCESS_TO_GOOGLE"
     }
   }
 

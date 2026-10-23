@@ -22,7 +22,14 @@ resource "google_service_networking_connection" "private_service_access" {
 }
 
 resource "google_compute_network_peering_routes_config" "psa_routes" {
-  count = (var.private_service_access != null && var.network_name != "") ? 1 : 0
+  count = (
+    var.private_service_access != null &&
+    var.network_name != "" &&
+    (
+      var.private_service_access.import_custom_routes ||
+      var.private_service_access.export_custom_routes
+    )
+  ) ? 1 : 0
 
   project              = var.project_id
   peering              = google_service_networking_connection.private_service_access[0].peering
@@ -65,12 +72,17 @@ resource "google_compute_forwarding_rule" "psc" {
 resource "google_compute_subnetwork" "pga" {
   for_each = var.pga_subnets
 
-  project                    = var.project_id
-  name                       = each.key
-  region                     = each.value.region
-  network                    = var.network
-  ip_cidr_range              = each.value.ip_cidr_range
-  description                = each.value.description
+  project = var.project_id
+  name    = each.key
+  region  = each.value.region
+  network = var.network
+
+  ip_cidr_range = each.value.ip_cidr_range
+  description   = each.value.description
+
+  stack_type       = each.value.stack_type
+  ipv6_access_type = each.value.ipv6_access_type
+
   private_ip_google_access   = true
   private_ipv6_google_access = each.value.private_ipv6_google_access
 }
