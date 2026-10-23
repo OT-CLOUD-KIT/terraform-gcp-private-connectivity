@@ -1,0 +1,61 @@
+resource "google_compute_global_address" "private_service_access" {
+  count = var.private_service_access == null ? 0 : 1
+
+  project       = var.project_id
+  name          = var.private_service_access.name
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  address       = var.private_service_access.address
+  prefix_length = var.private_service_access.prefix_length
+  network       = var.network
+}
+
+resource "google_service_networking_connection" "private_service_access" {
+  count = var.private_service_access == null ? 0 : 1
+
+  network = var.network
+  service = var.private_service_access.service
+  reserved_peering_ranges = [
+    google_compute_global_address.private_service_access[0].name
+  ]
+
+  deletion_policy = "ABANDON"
+}
+
+resource "google_compute_address" "psc" {
+  for_each = var.psc_endpoints
+
+  project      = var.project_id
+  name         = coalesce(each.value.address_name, "${each.key}-address")
+  region       = each.value.region
+  address_type = "INTERNAL"
+  subnetwork   = each.value.subnetwork
+  address      = each.value.ip_address
+}
+
+resource "google_compute_forwarding_rule" "psc" {
+  for_each = var.psc_endpoints
+
+  project                 = var.project_id
+  name                    = coalesce(each.value.forwarding_rule_name, each.key)
+  region                  = each.value.region
+  network                 = var.network
+  subnetwork              = each.value.subnetwork
+  ip_address              = google_compute_address.psc[each.key].id
+  target                  = each.value.service_attachment
+  allow_psc_global_access = each.value.allow_global_access
+  load_balancing_scheme   = ""
+}
+
+resource "google_compute_subnetwork" "pga" {
+  for_each = var.pga_subnets
+
+  project                    = var.project_id
+  name                       = each.key
+  region                     = each.value.region
+  network                    = var.network
+  ip_cidr_range              = each.value.ip_cidr_range
+  description                = each.value.description
+  private_ip_google_access   = true
+  private_ipv6_google_access = each.value.private_ipv6_google_access
+}

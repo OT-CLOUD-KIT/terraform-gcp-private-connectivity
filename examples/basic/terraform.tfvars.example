@@ -1,0 +1,14 @@
+project_id = "your-gcp-project-id"
+network    = "projects/your-gcp-project-id/global/networks/your-existing-vpc"
+region     = "asia-south1"
+
+# Replace with a real published service attachment URI.
+psc_service_attachment = "projects/producer-project/regions/asia-south1/serviceAttachments/example-service"
+
+# Use a real existing subnet in the endpoint region.
+psc_subnetwork = "projects/your-gcp-project-id/regions/asia-south1/subnetworks/your-existing-subnet"
+
+# Example values only: check for overlaps with your network.
+psa_range         = "10.240.0.0"
+psa_prefix_length = 16
+pga_subnet_cidr   = "10.30.0.0/24"
