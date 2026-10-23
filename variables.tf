@@ -104,7 +104,15 @@ variable "pga_subnets" {
 
     error_message = "ipv6_access_type must be provided when stack_type is IPV4_IPV6."
   }
+  validation {
+  condition = alltrue([
+    for subnet in values(var.pga_subnets) :
+    subnet.stack_type != "IPV4_ONLY" ||
+    subnet.ipv6_access_type == null
+  ])
 
+   error_message = "ipv6_access_type must be null when stack_type is IPV4_ONLY."
+ }
   validation {
     condition = alltrue([
       for subnet in values(var.pga_subnets) :
